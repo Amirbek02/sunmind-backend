@@ -27,6 +27,7 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
   };
 
   private deviceStatus: DeviceStatus | null = null;
+  private isConnecting = false;
 
   constructor(private configService: ConfigService) {}
 
@@ -39,60 +40,87 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async connect(): Promise<void> {
-    const mqttUrl = this.configService.get<string>(
-      'MQTT_URL',
-      'mqtt://broker.hivemq.com',
-    );
+    if (this.isConnecting || this.client?.connected) {
+      return;
+    }
 
-    this.logger.log(
-      `Подключение к MQTT брокеру: ${'mqtt://test.mosquitto.org:1883'}`,
-    );
+    this.isConnecting = true;
 
-    this.client = mqtt.connect('mqtt://test.mosquitto.org:1883', {
-      clientId: `nest-${Date.now()}`,
-      clean: true,
-      connectTimeout: 4000,
-      reconnectPeriod: 1000,
-    });
+    try {
+      // Получаем конфигурацию
+      const mqttUrl = this.configService.get<string>(
+        'MQTT_URL',
+        'mqtt://broker.hivemq.com',
+      );
 
+      const mqttPort = this.configService.get<number>('MQTT_PORT', 1883);
+
+      this.logger.log(`Подключение к MQTT брокеру: ${mqttUrl}:${mqttPort}`);
+
+      // Опции подключения
+      const options: mqtt.IClientOptions = {
+        clientId: `nest-${Date.now()}`,
+        clean: true,
+        connectTimeout: 10000,
+        reconnectPeriod: 5000,
+        keepalive: 60,
+        protocol: 'mqtt',
+        ...(mqttUrl.startsWith('mqtts://')
+          ? {
+              rejectUnauthorized: false,
+            }
+          : {}),
+      };
+
+      // Подключаемся с URL и портом
+      const connectUrl =
+        mqttUrl.startsWith('mqtt://') || mqttUrl.startsWith('mqtts://')
+          ? mqttUrl
+          : `mqtt://${mqttUrl}:${mqttPort}`;
+
+      this.client = mqtt.connect(connectUrl, options);
+
+      this.setupEventListeners();
+
+      // Ждем подключения с таймаутом
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Timeout connecting to MQTT'));
+        }, 10000);
+
+        this.client.once('connect', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+
+        this.client.once('error', (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        });
+      });
+    } catch (error) {
+      this.logger.error(`Ошибка подключения к MQTT: ${error.message}`);
+      this.isConnecting = false;
+      throw error;
+    }
+  }
+
+  private setupEventListeners(): void {
     this.client.on('connect', () => {
-      this.logger.log('✅ Подключено к MQTT брокеру');
+      this.logger.log('✅ Успешно подключено к MQTT брокеру');
+      this.isConnecting = false;
 
       // Подписываемся на топики
-      this.client.subscribe(this.topics.status, (err) => {
-        if (err) {
-          this.logger.error(`Ошибка подписки на ${this.topics.status}:`, err);
-        } else {
-          this.logger.log(`📡 Подписался на ${this.topics.status}`);
-        }
-      });
+      this.subscribeToTopics();
     });
 
     this.client.on('message', (topic: string, message: Buffer) => {
-      if (topic === this.topics.status) {
-        try {
-          const messageStr = message.toString();
-          this.logger.debug(`Получено сообщение: ${messageStr}`);
-
-          // Пробуем парсить как JSON
-          try {
-            const data = JSON.parse(messageStr) as DeviceStatus;
-            this.deviceStatus = data;
-            this.logger.log(
-              `✅ Статус устройства (JSON): ${JSON.stringify(data)}`,
-            );
-          } catch (jsonError) {
-            // Если не JSON, пробуем парсить как простую строку
-            this.parseSimpleStatus(messageStr);
-          }
-        } catch (err) {
-          this.logger.error('Ошибка обработки сообщения:', err);
-        }
-      }
+      this.handleMessage(topic, message);
     });
 
     this.client.on('error', (error: Error) => {
-      this.logger.error('MQTT ошибка:', error);
+      this.logger.error('MQTT ошибка:', error.message);
+      this.isConnecting = false;
     });
 
     this.client.on('offline', () => {
@@ -102,13 +130,55 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
     this.client.on('reconnect', () => {
       this.logger.log('Переподключение к MQTT...');
     });
+
+    this.client.on('close', () => {
+      this.logger.log('MQTT соединение закрыто');
+    });
   }
 
-  // Парсинг простого текстового статуса (например, "LIGHT_ON" или "LIGHT_OFF")
+  private subscribeToTopics(): void {
+    // Подписываемся на все нужные топики
+    const topics = Object.values(this.topics);
+
+    topics.forEach((topic) => {
+      this.client.subscribe(topic, { qos: 1 }, (err) => {
+        if (err) {
+          this.logger.error(`Ошибка подписки на ${topic}:`, err.message);
+        } else {
+          this.logger.log(`📡 Подписался на ${topic}`);
+        }
+      });
+    });
+  }
+
+  private handleMessage(topic: string, message: Buffer): void {
+    try {
+      const messageStr = message.toString();
+
+      if (topic === this.topics.status) {
+        this.logger.debug(`Получен статус: ${messageStr}`);
+        this.parseStatusMessage(messageStr);
+      }
+    } catch (err) {
+      this.logger.error('Ошибка обработки сообщения:', err.message);
+    }
+  }
+
+  private parseStatusMessage(message: string): void {
+    try {
+      // Пробуем парсить как JSON
+      const data = JSON.parse(message) as DeviceStatus;
+      this.deviceStatus = data;
+      this.logger.debug(`✅ Статус устройства обновлен: ${data.led_state}`);
+    } catch (jsonError) {
+      // Если не JSON, пробуем парсить как простую строку
+      this.parseSimpleStatus(message);
+    }
+  }
+
   private parseSimpleStatus(message: string): void {
     message = message.trim().toUpperCase();
 
-    // Создаем базовый статус
     const baseStatus: DeviceStatus = {
       led_state: 'UNKNOWN',
       manual_mode: true,
@@ -118,14 +188,12 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
       ip: '0.0.0.0',
     };
 
-    // Определяем состояние света
     if (message.includes('ON') || message === 'ON') {
       baseStatus.led_state = 'ON';
     } else if (message.includes('OFF') || message === 'OFF') {
       baseStatus.led_state = 'OFF';
     }
 
-    // Пробуем извлечь данные из строки
     const parts = message.split('_');
     for (const part of parts) {
       if (part === 'AUTO') baseStatus.manual_mode = false;
@@ -134,57 +202,83 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.deviceStatus = baseStatus;
-    this.logger.log(
-      `✅ Статус устройства (текст): ${message} -> ${JSON.stringify(baseStatus)}`,
-    );
+    this.logger.debug(`✅ Текстовый статус: ${message}`);
   }
 
   private disconnect(): void {
     if (this.client) {
-      this.client.end();
-      this.logger.log('Отключено от MQTT');
+      this.client.end(true, () => {
+        this.logger.log('Отключено от MQTT');
+      });
+    }
+  }
+
+  // Проверяем подключение перед отправкой команды
+  private async ensureConnected(): Promise<void> {
+    if (!this.client || !this.client.connected) {
+      this.logger.warn('MQTT не подключен, пытаемся переподключиться...');
+      try {
+        await this.connect();
+      } catch (error) {
+        throw new Error(`Не удалось подключиться к MQTT: ${error.message}`);
+      }
     }
   }
 
   // Управление светом
-  turnOn(): void {
-    if (!this.client || !this.client.connected) {
-      throw new Error('MQTT не подключен');
-    }
+  async turnOn(): Promise<void> {
+    await this.ensureConnected();
 
-    this.client.publish(this.topics.control, 'ON');
-    this.logger.log('Команда отправлена: ВКЛЮЧИТЬ свет');
+    this.client.publish(this.topics.control, 'ON', { qos: 1 }, (error) => {
+      if (error) {
+        this.logger.error('Ошибка отправки команды ON:', error.message);
+      } else {
+        this.logger.log('✅ Команда отправлена: ВКЛЮЧИТЬ свет');
+      }
+    });
   }
 
-  turnOff(): void {
-    if (!this.client || !this.client.connected) {
-      throw new Error('MQTT не подключен');
-    }
+  async turnOff(): Promise<void> {
+    await this.ensureConnected();
 
-    this.client.publish(this.topics.control, 'OFF');
-    this.logger.log('Команда отправлена: ВЫКЛЮЧИТЬ свет');
+    this.client.publish(this.topics.control, 'OFF', { qos: 1 }, (error) => {
+      if (error) {
+        this.logger.error('Ошибка отправки команды OFF:', error.message);
+      } else {
+        this.logger.log('✅ Команда отправлена: ВЫКЛЮЧИТЬ свет');
+      }
+    });
   }
 
-  toggle(): void {
+  async toggle(): Promise<void> {
+    await this.ensureConnected();
+
     if (!this.deviceStatus) {
       throw new Error('Статус устройства неизвестен');
     }
 
-    if (this.deviceStatus.led_state === 'ON') {
-      this.turnOff();
-    } else {
-      this.turnOn();
-    }
+    const command = this.deviceStatus.led_state === 'ON' ? 'OFF' : 'ON';
+
+    this.client.publish(this.topics.control, command, { qos: 1 }, (error) => {
+      if (error) {
+        this.logger.error('Ошибка отправки команды toggle:', error.message);
+      } else {
+        this.logger.log(`✅ Команда отправлена: ${command}`);
+      }
+    });
   }
 
   // Управление режимом
-  setMode(mode: 'manual' | 'auto'): void {
-    if (!this.client || !this.client.connected) {
-      throw new Error('MQTT не подключен');
-    }
+  async setMode(mode: 'manual' | 'auto'): Promise<void> {
+    await this.ensureConnected();
 
-    this.client.publish(this.topics.mode, mode);
-    this.logger.log(`Команда отправлена: установить режим ${mode}`);
+    this.client.publish(this.topics.mode, mode, { qos: 1 }, (error) => {
+      if (error) {
+        this.logger.error('Ошибка отправки режима:', error.message);
+      } else {
+        this.logger.log(`✅ Команда отправлена: установить режим ${mode}`);
+      }
+    });
   }
 
   // Получение статуса
@@ -197,7 +291,16 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
     return this.client?.connected || false;
   }
 
-  // Принудительное обновление статуса
+  // Получение статуса подключения
+  getConnectionStatus() {
+    return {
+      connected: this.isConnected(),
+      isConnecting: this.isConnecting,
+      clientId: this.client?.options?.clientId,
+    };
+  }
+
+  // Установить mock статус для тестирования
   setMockStatus(ledState: 'ON' | 'OFF' = 'OFF'): void {
     this.deviceStatus = {
       led_state: ledState,
