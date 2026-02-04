@@ -1,0 +1,168 @@
+// src/mqtt/mqtt.service.ts
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import mqtt from 'mqtt';
+
+export interface DeviceStatus {
+  led_state: string;
+  manual_mode: boolean;
+  motion_active: boolean;
+  toggle_count: number;
+  uptime: number;
+  ip: string;
+}
+
+@Injectable()
+export class PubLedService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(PubLedService.name);
+  private client: mqtt.MqttClient;
+  private readonly topics = {
+    control: 'home/light/control',
+    status: 'home/light/status',
+    mode: 'home/light/mode',
+  };
+
+  private deviceStatus: DeviceStatus | null = null;
+  private statusCallbacks: Array<(status: DeviceStatus) => void> = [];
+
+  constructor(private configService: ConfigService) {}
+
+  async onModuleInit() {
+    await this.connect();
+  }
+
+  onModuleDestroy() {
+    this.disconnect();
+  }
+
+  private async connect(): Promise<void> {
+    const mqttUrl = this.configService.get<string>(
+      'MQTT_URL',
+      'mqtt://broker.hivemq.com',
+    );
+
+    this.logger.log(`Подключение к MQTT брокеру: ${mqttUrl}`);
+
+    this.client = mqtt.connect(mqttUrl, {
+      clientId: `nest-${Date.now()}`,
+      clean: true,
+      connectTimeout: 4000,
+      reconnectPeriod: 1000,
+    });
+
+    this.client.on('connect', () => {
+      this.logger.log('✅ Подключено к MQTT брокеру');
+
+      // Подписываемся на топики
+      this.client.subscribe(this.topics.status, (err) => {
+        if (err) {
+          this.logger.error(`Ошибка подписки на ${this.topics.status}:`, err);
+        } else {
+          this.logger.log(`📡 Подписался на ${this.topics.status}`);
+        }
+      });
+    });
+
+    this.client.on('message', (topic: string, message: Buffer) => {
+      if (topic === this.topics.status) {
+        try {
+          const data = JSON.parse(message.toString()) as DeviceStatus;
+          this.deviceStatus = data;
+
+          // Уведомляем всех подписчиков
+          this.statusCallbacks.forEach((callback) => {
+            try {
+              callback(data);
+            } catch (err) {
+              this.logger.error('Ошибка в callback статуса:', err);
+            }
+          });
+
+          this.logger.debug(`Статус устройства: ${JSON.stringify(data)}`);
+        } catch (err) {
+          this.logger.error('Ошибка парсинга статуса:', err);
+        }
+      }
+    });
+
+    this.client.on('error', (error: Error) => {
+      this.logger.error('MQTT ошибка:', error);
+    });
+
+    this.client.on('offline', () => {
+      this.logger.warn('MQTT отключено');
+    });
+
+    this.client.on('reconnect', () => {
+      this.logger.log('Переподключение к MQTT...');
+    });
+  }
+
+  private disconnect(): void {
+    if (this.client) {
+      this.client.end();
+      this.logger.log('Отключено от MQTT');
+    }
+  }
+
+  // Управление светом
+  turnOn(): void {
+    if (!this.client || !this.client.connected) {
+      throw new Error('MQTT не подключен');
+    }
+
+    this.client.publish(this.topics.control, 'ON');
+    this.logger.log('Команда отправлена: ВКЛЮЧИТЬ свет');
+  }
+
+  turnOff(): void {
+    if (!this.client || !this.client.connected) {
+      throw new Error('MQTT не подключен');
+    }
+
+    this.client.publish(this.topics.control, 'OFF');
+    this.logger.log('Команда отправлена: ВЫКЛЮЧИТЬ свет');
+  }
+
+  toggle(): void {
+    if (!this.deviceStatus) {
+      throw new Error('Статус устройства неизвестен');
+    }
+
+    if (this.deviceStatus.led_state === 'ON') {
+      this.turnOff();
+    } else {
+      this.turnOn();
+    }
+  }
+
+  // Управление режимом
+  setMode(mode: 'manual' | 'auto'): void {
+    if (!this.client || !this.client.connected) {
+      throw new Error('MQTT не подключен');
+    }
+
+    this.client.publish(this.topics.mode, mode);
+    this.logger.log(`Команда отправлена: установить режим ${mode}`);
+  }
+
+  // Получение статуса
+  getStatus(): DeviceStatus | null {
+    return this.deviceStatus;
+  }
+
+  // Подписка на изменения статуса
+  subscribeToStatus(callback: (status: DeviceStatus) => void): void {
+    this.statusCallbacks.push(callback);
+  }
+
+  // Проверка подключения
+  isConnected(): boolean {
+    return this.client?.connected || false;
+  }
+}
