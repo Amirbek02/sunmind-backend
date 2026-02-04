@@ -44,9 +44,11 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
       'mqtt://broker.hivemq.com',
     );
 
-    this.logger.log(`Подключение к MQTT брокеру: ${mqttUrl}`);
+    this.logger.log(
+      `Подключение к MQTT брокеру: ${'mqtt://test.mosquitto.org:1883'}`,
+    );
 
-    this.client = mqtt.connect(mqttUrl, {
+    this.client = mqtt.connect('mqtt://test.mosquitto.org:1883', {
       clientId: `nest-${Date.now()}`,
       clean: true,
       connectTimeout: 4000,
