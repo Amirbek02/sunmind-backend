@@ -14,8 +14,8 @@ export class LedService {
   ) {}
 
   // IP адрес вашего ESP32
-  private esp32Ip: string | null = '192.168.50.215';
-  private readonly ESP32_PORT = 80;
+  private esp32Ip: string | null = process.env.ESP32_IP || null;
+  private readonly ESP32_PORT = parseInt(process.env.ESP32_PORT || '80', 10);
   private readonly ESP32_URL = `http://${this.esp32Ip}:${this.ESP32_PORT}`;
 
   // Получить статус системы
