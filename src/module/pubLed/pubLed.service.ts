@@ -1,4 +1,3 @@
-// src/mqtt/mqtt.service.ts
 import {
   Injectable,
   Logger,
@@ -28,7 +27,6 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
   };
 
   private deviceStatus: DeviceStatus | null = null;
-  private statusCallbacks: Array<(status: DeviceStatus) => void> = [];
 
   constructor(private configService: ConfigService) {}
 
@@ -71,21 +69,22 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
     this.client.on('message', (topic: string, message: Buffer) => {
       if (topic === this.topics.status) {
         try {
-          const data = JSON.parse(message.toString()) as DeviceStatus;
-          this.deviceStatus = data;
+          const messageStr = message.toString();
+          this.logger.debug(`Получено сообщение: ${messageStr}`);
 
-          // Уведомляем всех подписчиков
-          this.statusCallbacks.forEach((callback) => {
-            try {
-              callback(data);
-            } catch (err) {
-              this.logger.error('Ошибка в callback статуса:', err);
-            }
-          });
-
-          this.logger.debug(`Статус устройства: ${JSON.stringify(data)}`);
+          // Пробуем парсить как JSON
+          try {
+            const data = JSON.parse(messageStr) as DeviceStatus;
+            this.deviceStatus = data;
+            this.logger.log(
+              `✅ Статус устройства (JSON): ${JSON.stringify(data)}`,
+            );
+          } catch (jsonError) {
+            // Если не JSON, пробуем парсить как простую строку
+            this.parseSimpleStatus(messageStr);
+          }
         } catch (err) {
-          this.logger.error('Ошибка парсинга статуса:', err);
+          this.logger.error('Ошибка обработки сообщения:', err);
         }
       }
     });
@@ -101,6 +100,41 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
     this.client.on('reconnect', () => {
       this.logger.log('Переподключение к MQTT...');
     });
+  }
+
+  // Парсинг простого текстового статуса (например, "LIGHT_ON" или "LIGHT_OFF")
+  private parseSimpleStatus(message: string): void {
+    message = message.trim().toUpperCase();
+
+    // Создаем базовый статус
+    const baseStatus: DeviceStatus = {
+      led_state: 'UNKNOWN',
+      manual_mode: true,
+      motion_active: false,
+      toggle_count: 0,
+      uptime: 0,
+      ip: '0.0.0.0',
+    };
+
+    // Определяем состояние света
+    if (message.includes('ON') || message === 'ON') {
+      baseStatus.led_state = 'ON';
+    } else if (message.includes('OFF') || message === 'OFF') {
+      baseStatus.led_state = 'OFF';
+    }
+
+    // Пробуем извлечь данные из строки
+    const parts = message.split('_');
+    for (const part of parts) {
+      if (part === 'AUTO') baseStatus.manual_mode = false;
+      if (part === 'MANUAL') baseStatus.manual_mode = true;
+      if (part === 'MOTION') baseStatus.motion_active = true;
+    }
+
+    this.deviceStatus = baseStatus;
+    this.logger.log(
+      `✅ Статус устройства (текст): ${message} -> ${JSON.stringify(baseStatus)}`,
+    );
   }
 
   private disconnect(): void {
@@ -156,13 +190,21 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
     return this.deviceStatus;
   }
 
-  // Подписка на изменения статуса
-  subscribeToStatus(callback: (status: DeviceStatus) => void): void {
-    this.statusCallbacks.push(callback);
-  }
-
   // Проверка подключения
   isConnected(): boolean {
     return this.client?.connected || false;
+  }
+
+  // Принудительное обновление статуса
+  setMockStatus(ledState: 'ON' | 'OFF' = 'OFF'): void {
+    this.deviceStatus = {
+      led_state: ledState,
+      manual_mode: true,
+      motion_active: false,
+      toggle_count: 0,
+      uptime: Date.now() / 1000,
+      ip: '127.0.0.1',
+    };
+    this.logger.log(`✅ Установлен mock статус: ${ledState}`);
   }
 }
