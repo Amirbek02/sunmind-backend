@@ -15,6 +15,24 @@ export class PubLedController {
 
   constructor(private readonly pubLedService: PubLedService) {}
 
+  @Post('brightness')
+  async changeBrightness(
+    @Body() body: { value?: number; brightness?: number },
+  ) {
+    // Проверяем оба варианта имени поля для надежности
+    const val = body.value ?? body.brightness;
+    if (val === undefined || val === null) {
+      throw new HttpException(
+        {
+          status: 'error',
+          message: 'Brightness value is required',
+          timestamp: new Date().toISOString(),
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    return this.pubLedService.setBrightness(val);
+  }
   @Get('status')
   async getStatus() {
     try {
@@ -32,7 +50,7 @@ export class PubLedController {
       throw new HttpException(
         {
           status: 'error',
-          message: error.message,
+          message: error instanceof Error ? error.message : 'Unknown error',
           timestamp: new Date().toISOString(),
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -54,7 +72,7 @@ export class PubLedController {
       throw new HttpException(
         {
           status: 'error',
-          message: error.message,
+          message: error instanceof Error ? error.message : 'Unknown error',
           timestamp: new Date().toISOString(),
         },
         HttpStatus.SERVICE_UNAVAILABLE,
@@ -76,7 +94,7 @@ export class PubLedController {
       throw new HttpException(
         {
           status: 'error',
-          message: error.message,
+          message: error instanceof Error ? error.message : 'Unknown error',
           timestamp: new Date().toISOString(),
         },
         HttpStatus.SERVICE_UNAVAILABLE,
@@ -98,7 +116,7 @@ export class PubLedController {
       throw new HttpException(
         {
           status: 'error',
-          message: error.message,
+          message: error instanceof Error ? error.message : 'Unknown error',
           timestamp: new Date().toISOString(),
         },
         HttpStatus.SERVICE_UNAVAILABLE,
@@ -130,7 +148,7 @@ export class PubLedController {
       throw new HttpException(
         {
           status: 'error',
-          message: error.message,
+          message: error instanceof Error ? error.message : 'Unknown error',
           timestamp: new Date().toISOString(),
         },
         HttpStatus.SERVICE_UNAVAILABLE,
@@ -152,7 +170,7 @@ export class PubLedController {
       throw new HttpException(
         {
           status: 'error',
-          message: error.message,
+          message: error instanceof Error ? error.message : 'Unknown error',
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );

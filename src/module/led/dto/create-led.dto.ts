@@ -1,36 +1,36 @@
 export class ControlLedDto {
-  state: boolean;
+  state!: boolean;
 }
 
 export class ChangeModeDto {
-  mode: 'manual' | 'auto';
+  mode!: 'manual' | 'auto';
 }
 
 export class StatusResponseDto {
-  led_state: boolean;
-  manual_mode: boolean;
-  toggle_count: number;
+  led_state!: boolean;
+  manual_mode!: boolean;
+  toggle_count!: number;
 }
 
 export class SensorStatusResponseDto {
-  motion_active: boolean;
+  motion_active!: boolean;
 }
 
 export class FullStatusResponseDto {
-  led: {
+  led!: {
     state: boolean;
     status_text: string;
   };
-  mode: {
+  mode!: {
     manual_mode: boolean;
     mode_text: string;
   };
-  sensor: {
+  sensor!: {
     motion_active: boolean;
     status_text: string;
   };
-  statistics: {
+  statistics!: {
     toggle_count: number;
   };
-  timestamp: string;
+  timestamp!: string;
 }

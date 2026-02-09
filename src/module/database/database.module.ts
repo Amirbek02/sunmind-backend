@@ -12,6 +12,7 @@ import { LedState } from './entities/led.entity';
       ssl: { rejectUnauthorized: false },
       autoLoadEntities: true,
       synchronize: true,
+      entities: [__dirname + '/../**/*.entity{.ts,.js}'],
     }),
   ],
   controllers: [],

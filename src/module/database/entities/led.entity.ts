@@ -3,11 +3,11 @@ import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 @Entity()
 export class LedState {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ default: false })
-  led_state: boolean;
+  led_state!: boolean;
 
   @Column({ nullable: true })
-  device_id: string;
+  device_id!: string;
 }

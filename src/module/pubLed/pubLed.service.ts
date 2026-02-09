@@ -24,10 +24,13 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
     control: 'home/light/control',
     status: 'home/light/status',
     mode: 'home/light/mode',
+    brightness: 'home/light/brightness',
   };
 
   private deviceStatus: DeviceStatus | null = null;
   private isConnecting = false;
+  httpService: any;
+  mqttClient: any;
 
   constructor(private configService: ConfigService) {}
 
@@ -159,7 +162,7 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
         this.logger.debug(`Получен статус: ${messageStr}`);
         this.parseStatusMessage(messageStr);
       }
-    } catch (err) {
+    } catch (err: any) {
       this.logger.error('Ошибка обработки сообщения:', err.message);
     }
   }
@@ -250,6 +253,31 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  async setBrightness(value: number) {
+    await this.ensureConnected();
+
+    // Проверка: если значение не пришло, ставим 0 или выкидываем ошибку
+    if (value === undefined || value === null) {
+      this.logger.error('Попытка установить яркость без значения');
+      throw new Error('Brightness value is required');
+    }
+
+    return new Promise((resolve, reject) => {
+      const topic = this.topics.brightness;
+      // Принудительно приводим к числу, а затем к строке
+      const payload = String(Number(value));
+
+      this.client.publish(topic, payload, { qos: 1 }, (error) => {
+        if (error) {
+          this.logger.error(`❌ Ошибка отправки MQTT: ${error.message}`);
+          reject(new Error('MQTT publish failed'));
+        } else {
+          this.logger.log(`🌓 Яркость успешно отправлена: ${payload}`);
+          resolve({ status: 'success', value: Number(value) });
+        }
+      });
+    });
+  }
   async toggle(): Promise<void> {
     await this.ensureConnected();
 
