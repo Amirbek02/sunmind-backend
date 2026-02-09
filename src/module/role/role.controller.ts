@@ -2,7 +2,7 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { RoleService } from './role.service';
 import { RoleCreateDto } from './dto/role.dto';
 import { CustomLogger } from 'src/helpers/logger/logger.service';
-import { RefId } from 'src/decorators/ref.decorator';
+import { RefId } from '../../decorators/ref.decorator';
 
 @Controller('roles')
 export class RoleController {

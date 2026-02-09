@@ -19,7 +19,6 @@ export class PubLedController {
   async changeBrightness(
     @Body() body: { value?: number; brightness?: number },
   ) {
-    // Проверяем оба варианта имени поля для надежности
     const val = body.value ?? body.brightness;
     if (val === undefined || val === null) {
       throw new HttpException(
