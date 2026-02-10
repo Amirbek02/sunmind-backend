@@ -102,7 +102,9 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
         });
       });
     } catch (error) {
-      this.logger.error(`Ошибка подключения к MQTT: ${error.message}`);
+      this.logger.error(
+        `Ошибка подключения к MQTT: ${(error as Error).message}`,
+      );
       this.isConnecting = false;
       throw error;
     }
@@ -223,7 +225,7 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
       try {
         await this.connect();
       } catch (error) {
-        throw new Error(`Не удалось подключиться к MQTT: ${error.message}`);
+        throw new Error(`Не удалось подключиться к MQTT: ${(error as Error).message}`);
       }
     }
   }

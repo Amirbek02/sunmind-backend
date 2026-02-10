@@ -10,6 +10,7 @@ import { RoleModule } from './module/role/role.module';
 import { UserModule } from './module/user/user.module';
 import { AuthService } from './module/auth/auth.service';
 import { AuthModule } from './module/auth/auth.module';
+import { ReviewModule } from './module/review/review.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AuthModule } from './module/auth/auth.module';
     RoleModule,
     UserModule,
     AuthModule,
+    ReviewModule,
   ],
   controllers: [AppController],
   providers: [AppService, CustomLogger],
