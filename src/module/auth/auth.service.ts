@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UserService } from '../user/user.service';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { CustomLogger } from '@/helpers/logger/logger.service';
 import { UserCreateDto } from '../user/dto/create-user.dto';
 import { JwtService } from '@nestjs/jwt';
 

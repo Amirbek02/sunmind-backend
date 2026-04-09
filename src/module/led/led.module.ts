@@ -3,7 +3,7 @@ import { LedService } from './led.service';
 import { LedController } from './led.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LedState } from '../database/entities/led.entity';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { CustomLogger } from '@/helpers/logger/logger.service';
 import { HttpModule, HttpService } from '@nestjs/axios';
 
 @Module({

@@ -6,7 +6,7 @@ import {
   Headers,
   Post,
 } from '@nestjs/common';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { CustomLogger } from '@/helpers/logger/logger.service';
 import { RefId } from '../../decorators/ref.decorator';
 import { UserCreateDto } from '../user/dto/create-user.dto';
 import { AuthService } from './auth.service';

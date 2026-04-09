@@ -3,7 +3,7 @@ import { RoleCreateDto } from './dto/role.dto';
 import { RoleEntity } from '../database/entities/role.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { CustomLogger } from '@/helpers/logger/logger.service';
 
 @Injectable()
 export class RoleService {

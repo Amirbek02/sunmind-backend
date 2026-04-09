@@ -15,7 +15,8 @@ export class Console {
       );
       return true;
     } catch (error) {
-      return { error: error.message, success: false };
+      const err = error as Error;
+      return { error: err.message, success: false };
     }
   }
 
@@ -27,7 +28,8 @@ export class Console {
         )} ${chalk.cyan(message)} ${chalk.bold.underline(`RefID: ${refId}`)}`,
       );
     } catch (error) {
-      return { error: error.message, success: false };
+      const err = error as Error;
+      return { error: err.message, success: false };
     }
   }
 
@@ -40,7 +42,8 @@ export class Console {
       );
       return true;
     } catch (error) {
-      return { error: error.message, success: false };
+      const err = error as Error;
+      return { error: err.message, success: false };
     }
   }
 
@@ -53,7 +56,8 @@ export class Console {
       );
       return true;
     } catch (error) {
-      return { error: error.message, success: false };
+      const err = error as Error;
+      return { error: err.message, success: false };
     }
   }
 
@@ -66,7 +70,8 @@ export class Console {
       );
       return true;
     } catch (error) {
-      return { error: error.message, success: false };
+      const err = error as Error;
+      return { error: err.message, success: false };
     }
   }
 }

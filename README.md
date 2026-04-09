@@ -26,6 +26,16 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Device telemetry & analytics (SunMind)
+
+- POST `/api/device-data` — принимает телеметрию (deviceId, lux, motion, brightness?, batteryVoltage?, batteryPercent?, manualMode, createdAt?) и обновляет текущее состояние + сохраняет в историю.
+- GET `/api/devices/{deviceId}/status` — последнее состояние, lastSeen.
+- GET `/api/devices/{deviceId}/telemetry?period=day|week|month` — история телеметрии по периоду (UTC основание).
+- GET `/api/devices/{deviceId}/analytics?period=day|week|month` — агрегаты: avg/min/max lux, motionCount (переходы false→true), lightOnMinutes (brightness>0), avgBrightness, battery min/max, energyWh/KWh, estimatedSavingsPercent.
+- Расписание: GET/POST `/api/devices/{deviceId}/schedule` (onHour/onMinute/offHour/offMinute).
+
+Энергия: мощность устройства читается из env `DEVICE_POWER_WATTS` (по умолчанию 5 Вт). Энергия считается по интервалам между точками телеметрии, с учётом коэффициента яркости brightness/255. Экономия — сравнение с базовой работой на 100% за тот же промежуток.
+
 ## Project setup
 
 ```bash

@@ -13,14 +13,19 @@ export class JwtAuthGuard {
       context.getHandler(),
       context.getClass(),
     ]);
+
+    const request = context.switchToHttp().getRequest();
+    const authHeader = request.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return false;
+
+    const user = this.jwtService.verify(token);
+    request.user = user;
+
     if (!requireRoles) {
       return true;
     }
-    const requset = context.switchToHttp().getRequest();
-    const authHeader = requset.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
-    const user = this.jwtService.verify(token);
 
-    return user.roles.some((role) => requireRoles.includes(role.role_name));
+    return user.roles?.some((role) => requireRoles.includes(role.role_name));
   }
 }

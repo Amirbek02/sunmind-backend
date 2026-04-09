@@ -3,9 +3,11 @@ import { HttpModule } from '@nestjs/axios';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { PubLedService } from './pubLed.service';
 import { PubLedController } from './pubLed.controller';
+import { DeviceModule } from '../device/device.module';
 
 @Module({
   imports: [
+    DeviceModule,
     HttpModule,
     ClientsModule.register([
       {

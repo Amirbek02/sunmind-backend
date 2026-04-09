@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { ReviewEntity } from '../database/entities/review.entity';
 import { ReviewResponseDto } from './dto/review.res.dto';
 import { CreateReviewDto } from './dto/review.dto';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { CustomLogger } from '@/helpers/logger/logger.service';
 
 @Injectable()
 export class ReviewService {

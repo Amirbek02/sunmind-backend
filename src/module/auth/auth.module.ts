@@ -3,7 +3,8 @@ import { UserModule } from '../user/user.module';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { CustomLogger } from '@/helpers/logger/logger.service';
+import { JwtAuthGuard } from './jwt-auth-guard';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { CustomLogger } from 'src/helpers/logger/logger.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, CustomLogger],
-  exports: [AuthService],
+  providers: [AuthService, CustomLogger, JwtAuthGuard],
+  exports: [AuthService, JwtAuthGuard, JwtModule],
 })
 export class AuthModule {}

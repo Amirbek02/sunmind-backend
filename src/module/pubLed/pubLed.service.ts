@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import mqtt from 'mqtt';
+import { DeviceService } from '../device/device.service';
 
 export interface DeviceStatus {
   led_state: string;
@@ -26,13 +27,17 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
     mode: 'home/light/mode',
     brightness: 'home/light/brightness',
   };
+  private readonly telemetryTopic = 'sunmind/telemetry';
 
   private deviceStatus: DeviceStatus | null = null;
   private isConnecting = false;
   httpService: any;
   mqttClient: any;
 
-  constructor(private configService: ConfigService) {}
+  constructor(
+    private configService: ConfigService,
+    private readonly deviceService: DeviceService,
+  ) {}
 
   async onModuleInit() {
     await this.connect();
@@ -142,8 +147,8 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
   }
 
   private subscribeToTopics(): void {
-    // Подписываемся на все нужные топики
-    const topics = Object.values(this.topics);
+    // Подписываемся на все нужные топики + телеметрия
+    const topics = [...Object.values(this.topics), this.telemetryTopic];
 
     topics.forEach((topic) => {
       this.client.subscribe(topic, { qos: 1 }, (err) => {
@@ -159,6 +164,11 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
   private handleMessage(topic: string, message: Buffer): void {
     try {
       const messageStr = message.toString();
+
+      if (topic === this.telemetryTopic) {
+        this.processTelemetry(messageStr);
+        return;
+      }
 
       if (topic === this.topics.status) {
         this.logger.debug(`Получен статус: ${messageStr}`);
@@ -178,6 +188,29 @@ export class PubLedService implements OnModuleInit, OnModuleDestroy {
     } catch (jsonError) {
       // Если не JSON, пробуем парсить как простую строку
       this.parseSimpleStatus(message);
+    }
+  }
+
+  private async processTelemetry(message: string) {
+    try {
+      const data = JSON.parse(message);
+      const payload = {
+        deviceId: data.deviceId,
+        motion: data.motion,
+        brightness: data.brightness,
+        lux: data.lux,
+        batteryPercent: data.batteryPercent,
+      };
+      await this.deviceService.saveTelemetry({
+        deviceId: payload.deviceId,
+        motion: payload.motion ?? false,
+        brightness: payload.brightness ?? 0,
+        lux: payload.lux ?? 0,
+        batteryPercent: payload.batteryPercent ?? null,
+        manualMode: false,
+      } as any);
+    } catch (error) {
+      this.logger.error('Ошибка обработки telemetry', (error as Error).message);
     }
   }
 

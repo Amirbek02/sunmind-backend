@@ -11,6 +11,8 @@ import { UserModule } from './module/user/user.module';
 import { AuthService } from './module/auth/auth.service';
 import { AuthModule } from './module/auth/auth.module';
 import { ReviewModule } from './module/review/review.module';
+import { DeviceModule } from './module/device/device.module';
+import { ZoneModule } from './module/zone/zone.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { ReviewModule } from './module/review/review.module';
     UserModule,
     AuthModule,
     ReviewModule,
+    DeviceModule,
+    ZoneModule,
   ],
   controllers: [AppController],
   providers: [AppService, CustomLogger],

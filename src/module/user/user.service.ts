@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from '../database/entities/user.entity';
 import { Repository } from 'typeorm';
 import { UserCreateDto } from './dto/create-user.dto';
-import { CustomLogger } from 'src/helpers/logger/logger.service';
+import { CustomLogger } from '@/helpers/logger/logger.service';
 import * as bcrypt from 'bcrypt';
 import { RoleEntity } from '../database/entities/role.entity';
 

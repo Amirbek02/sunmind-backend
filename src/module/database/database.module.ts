@@ -2,6 +2,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { LedState } from './entities/led.entity';
+import { DeviceEntity } from './entities/device.entity';
+import { DeviceScheduleEntity } from './entities/device-schedule.entity';
+import { DeviceTelemetryEntity } from './entities/device-telemetry.entity';
+import { ZoneEntity } from './entities/zone.entity';
 
 @Module({
   imports: [
@@ -12,7 +16,14 @@ import { LedState } from './entities/led.entity';
       ssl: { rejectUnauthorized: false },
       autoLoadEntities: true,
       synchronize: true,
-      entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+      entities: [
+        __dirname + '/../**/*.entity{.ts,.js}',
+        DeviceEntity,
+        DeviceScheduleEntity,
+        DeviceTelemetryEntity,
+        ZoneEntity,
+        LedState,
+      ],
     }),
   ],
   controllers: [],
